@@ -20,6 +20,9 @@
  * // Get user identity
  * const me = await identity();
  * console.log(me.id); // did:key:z6Mk...
+ * 
+ * // Share access
+ * const token = await me.createToken(doc.url, 'writer', { expires: '7d' });
  * ```
  * 
  * @packageDocumentation
@@ -70,7 +73,34 @@ export {
 // ============ Identity & Auth ============
 
 // Identity (user's cryptographic identity)
-export { initAuth as identity, type Auth } from './auth';
+export { 
+  identity,
+  initAuth,
+  createAuthState,
+  type Auth,
+  type CreateTokenOptions,
+  type GrantOptions,
+} from './auth';
+
+// Roles
+export {
+  type Role,
+  ROLES,
+  roleHasCapability,
+  roleCanDelegate,
+  getCapabilitiesForRole,
+} from './auth';
+
+// Grants
+export {
+  type Grant,
+  type ReceivedGrant,
+  getGrantsForDoc,
+  getReceivedGrants,
+  getReceivedGrantForDoc,
+  hasAccessToDoc,
+  getRoleForDoc,
+} from './auth';
 
 // Auth internals (for advanced use)
 export {

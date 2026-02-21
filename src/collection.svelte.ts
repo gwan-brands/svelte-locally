@@ -61,6 +61,10 @@ export interface CollectionStatus {
   online: boolean;
   /** Last error (null if no error) */
   error: string | null;
+  /** Number of unsynced local changes */
+  pendingChanges: number;
+  /** When collection was last synced (null if never) */
+  lastSyncedAt: Date | null;
 }
 
 /** Collection API return type */
@@ -163,7 +167,10 @@ export function collection<T extends object>(
     syncing: false,
     online: isBrowser ? navigator.onLine : true,
     error: null,
+    pendingChanges: 0,
+    lastSyncedAt: null,
   });
+  
   
   // Internal state
   let repo: Repo | null = null;
