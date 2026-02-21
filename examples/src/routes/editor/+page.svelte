@@ -278,7 +278,7 @@
   {/if}
 
   <!-- Document Switcher (when viewing shared doc) -->
-  {#if currentDocName !== 'shared-note'}
+  {#if viewingSharedUrl}
     <section class="doc-switcher">
       <span>Viewing shared document</span>
       <button onclick={openOwnDoc}>← Back to my note</button>
