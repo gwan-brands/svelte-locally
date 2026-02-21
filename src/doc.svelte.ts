@@ -217,6 +217,13 @@ export function doc<T extends object>(
       if (existingUrl) {
         handle = repo.find<T>(existingUrl);
         currentUrl = existingUrl;
+        
+        // Claim ownership if we don't have a token yet (migration for pre-v0.2 docs)
+        getAuth().then(auth => {
+          auth.claimOwnership(existingUrl);
+        }).catch(err => {
+          console.warn('[svelte-locally] Failed to claim ownership:', err);
+        });
       } else {
         handle = repo.create<T>(initial);
         storeUrl(id, handle.url);

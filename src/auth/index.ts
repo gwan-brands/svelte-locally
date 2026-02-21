@@ -72,6 +72,12 @@ export interface Auth {
   createDocToken: (resourceId: string) => Promise<UCANToken>;
 
   /**
+   * Claim ownership of a document (creates owner token if none exists).
+   * Use this for documents created before v0.2.0.
+   */
+  claimOwnership: (docUrl: string) => Promise<void>;
+
+  /**
    * Create an access token for someone else
    * @param docUrl - Document URL
    * @param role - Access role (reader, writer, admin)
@@ -244,17 +250,30 @@ export async function initAuth(): Promise<Auth> {
       return ucan;
     },
 
+    /**
+     * Claim ownership of a document (creates owner token if none exists).
+     * Use this for documents created before v0.2.0.
+     */
+    async claimOwnership(docUrl: string): Promise<void> {
+      const existingProof = await findValidUCAN(docUrl, 'doc/admin');
+      if (existingProof) return; // Already have ownership
+      
+      // Create owner token (self-issued)
+      const ucan = await createOwnerUCAN(keypair, docUrl);
+      storeUCAN(ucan);
+    },
+
     async createToken(
       docUrl: string,
       role: Role,
       options?: CreateTokenOptions
     ): Promise<string> {
       // Check we have permission to create tokens
-      const proof = await findValidUCAN(docUrl, 'doc/delegate');
+      let proof = await findValidUCAN(docUrl, 'doc/delegate');
       if (!proof) {
         // Check if we're the owner (have admin)
-        const adminProof = await findValidUCAN(docUrl, 'doc/admin');
-        if (!adminProof) {
+        proof = await findValidUCAN(docUrl, 'doc/admin');
+        if (!proof) {
           throw new Error('No permission to create access tokens for this document');
         }
       }
@@ -262,13 +281,14 @@ export async function initAuth(): Promise<Auth> {
       const expirySeconds = parseExpiry(options?.expires);
       const capabilities = roleToCapabilities(docUrl, role);
       
-      // Create a token addressed to "anyone" (will be validated on import)
+      // For bearer tokens, address to issuer (self)
+      // Recipients verify the chain is valid, not that they're the audience
       const ucan = await createUCAN({
         issuer: keypair,
-        audience: '*', // Open audience - anyone can import
+        audience: did, // Self-addressed bearer token
         capabilities,
         expiration: expirySeconds,
-        proofs: proof ? [proof.encoded] : []
+        proofs: [proof.encoded]
       });
       
       return ucan.encoded;
