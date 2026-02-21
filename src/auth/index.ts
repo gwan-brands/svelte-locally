@@ -352,9 +352,13 @@ export async function initAuth(): Promise<Auth> {
         return null;
       }
       
-      // Check if token is for us or open audience
-      if (ucan.audience !== keypair.did && ucan.audience !== '*') {
-        console.warn('[Auth] Token not addressed to us');
+      // Check if token is for us, open audience, or a bearer token (self-addressed)
+      const isForUs = ucan.audience === keypair.did;
+      const isOpenAudience = ucan.audience === '*';
+      const isBearerToken = ucan.audience === ucan.issuer; // Self-addressed = bearer
+      
+      if (!isForUs && !isOpenAudience && !isBearerToken) {
+        console.warn('[Auth] Token not addressed to us and not a bearer token');
         return null;
       }
       
