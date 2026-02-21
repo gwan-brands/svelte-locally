@@ -30,23 +30,27 @@
 
   onMount(async () => {
     init({ sync: 'wss://sync.automerge.org' });
-    
-    // Load the default note
-    note = doc<Note>('shared-note', {
-      title: 'Untitled Note',
-      content: '',
-      lastEdited: Date.now(),
-    });
-    
     user = await identity();
   });
 
   // Watch for URL changes and load appropriate doc
+  // This runs on mount AND when viewingSharedUrl changes
   $effect(() => {
     if (viewingSharedUrl) {
       note = docFromUrl<Note>(viewingSharedUrl);
+    } else {
+      note = doc<Note>('shared-note', {
+        title: 'Untitled Note',
+        content: '',
+        lastEdited: Date.now(),
+      });
     }
   });
+
+  // Refresh user to pick up new access tokens
+  async function refreshUser() {
+    user = await identity();
+  }
 
   // Open a shared document by URL
   function openSharedDoc(docUrl: string) {
@@ -60,11 +64,7 @@
   // Go back to own document
   function openOwnDoc() {
     viewingSharedUrl = null;
-    note = doc<Note>('shared-note', {
-      title: 'Untitled Note',
-      content: '',
-      lastEdited: Date.now(),
-    });
+    // The $effect above will handle loading the doc
   }
 
   // Sync remote changes to local state
@@ -126,7 +126,7 @@
     }
   }
 
-  function handleImportToken() {
+  async function handleImportToken() {
     if (!user || !importToken.trim()) return;
     
     importError = null;
@@ -137,6 +137,8 @@
       if (result) {
         importSuccess = true;
         importToken = '';
+        // Refresh user to update accessTokens list
+        await refreshUser();
         setTimeout(() => { importSuccess = false; }, 3000);
       } else {
         importError = 'Invalid or expired token';

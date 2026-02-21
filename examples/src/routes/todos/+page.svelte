@@ -111,7 +111,12 @@
     }
   }
 
-  function handleImport() {
+  // Refresh user to pick up new access tokens
+  async function refreshUser() {
+    user = await identity();
+  }
+
+  async function handleImport() {
     if (!user || !importInput.trim()) return;
     
     importMessage = null;
@@ -121,6 +126,8 @@
       if (result) {
         importMessage = { type: 'success', text: `✓ Imported ${result.role} access!` };
         importInput = '';
+        // Refresh to update accessTokens list
+        await refreshUser();
       } else {
         importMessage = { type: 'error', text: 'Invalid or expired token' };
       }
