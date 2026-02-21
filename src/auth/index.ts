@@ -285,7 +285,7 @@ export async function initAuth(): Promise<Auth> {
       // Recipients verify the chain is valid, not that they're the audience
       const ucan = await createUCAN({
         issuer: keypair,
-        audience: did, // Self-addressed bearer token
+        audience: keypair.did, // Self-addressed bearer token
         capabilities,
         expiration: expirySeconds,
         proofs: [proof.encoded]
