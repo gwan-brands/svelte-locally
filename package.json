@@ -64,10 +64,10 @@
     "@ucans/ucans": "^0.12.0"
   },
   "devDependencies": {
-    "jsdom": "^26.0.0",
+    "jsdom": "^28.1.0",
     "svelte": "^5.20.0",
     "svelte-check": "^4.0.0",
     "typescript": "^5.7.0",
-    "vitest": "^3.0.0"
+    "vitest": "^4.0.18"
   }
 }
