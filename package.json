@@ -55,10 +55,10 @@
   },
   "dependencies": {
     "@automerge/automerge": "^2.2.8",
-    "@automerge/automerge-repo": "^1.2.1",
-    "@automerge/automerge-repo-network-broadcastchannel": "^1.2.1",
-    "@automerge/automerge-repo-network-websocket": "^1.2.1",
-    "@automerge/automerge-repo-storage-indexeddb": "^1.2.1",
+    "@automerge/automerge-repo": "^2.5.3",
+    "@automerge/automerge-repo-network-broadcastchannel": "^2.5.3",
+    "@automerge/automerge-repo-network-websocket": "^2.5.3",
+    "@automerge/automerge-repo-storage-indexeddb": "^2.5.3",
     "@noble/ed25519": "^3.0.0",
     "@noble/hashes": "^2.0.1",
     "@ucans/ucans": "^0.12.0"
