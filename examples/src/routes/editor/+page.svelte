@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { init, doc, identity, type DocResult, type Auth, type Role } from 'svelte-locally';
+  import { init, doc, docFromUrl, identity, type DocResult, type Auth, type Role } from 'svelte-locally';
   import { onMount } from 'svelte';
 
   // Document structure
@@ -12,6 +12,7 @@
   // State
   let note = $state<DocResult<Note> | null>(null);
   let user = $state<Auth | null>(null);
+  let currentDocName = $state<string>('shared-note');
 
   // Local editing state
   let titleInput = $state('');
@@ -38,6 +39,27 @@
 
     user = await identity();
   });
+
+  // Open a shared document by URL
+  function openSharedDoc(docUrl: string) {
+    note = docFromUrl<Note>(docUrl);
+    currentDocName = docUrl.slice(0, 20) + '...';
+    showSharePanel = false;
+    // Reset editing state
+    isEditing = false;
+    titleInput = '';
+    contentInput = '';
+  }
+
+  // Go back to own document
+  function openOwnDoc() {
+    note = doc<Note>('shared-note', {
+      title: 'Untitled Note',
+      content: '',
+      lastEdited: Date.now(),
+    });
+    currentDocName = 'shared-note';
+  }
 
   // Sync remote changes to local state
   $effect(() => {
@@ -235,14 +257,25 @@
           <ul class="grants-list">
             {#each user.accessTokens as access}
               <li>
-                <code>{access.docUrl.slice(0, 20)}...</code>
+                <code title={access.docUrl}>{access.docUrl.slice(0, 20)}...</code>
                 <span class="role-badge">{access.role}</span>
                 <span class="from">from {formatUserId(access.fromDid)}</span>
+                <button class="open-btn" onclick={() => openSharedDoc(access.docUrl)}>
+                  Open →
+                </button>
               </li>
             {/each}
           </ul>
         </div>
       {/if}
+    </section>
+  {/if}
+
+  <!-- Document Switcher (when viewing shared doc) -->
+  {#if currentDocName !== 'shared-note'}
+    <section class="doc-switcher">
+      <span>Viewing shared document</span>
+      <button onclick={openOwnDoc}>← Back to my note</button>
     </section>
   {/if}
 
@@ -540,7 +573,45 @@
   .expires, .from {
     color: #999;
     font-size: 0.8rem;
+  }
+
+  .open-btn {
     margin-left: auto;
+    padding: 0.25rem 0.5rem;
+    background: #4CAF50;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.75rem;
+  }
+
+  .open-btn:hover {
+    background: #43A047;
+  }
+
+  .doc-switcher {
+    background: #fff3cd;
+    padding: 0.75rem 1rem;
+    border-radius: 8px;
+    margin-bottom: 1.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 0.9rem;
+  }
+
+  .doc-switcher button {
+    padding: 0.4rem 0.8rem;
+    background: #666;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+  }
+
+  .doc-switcher button:hover {
+    background: #555;
   }
 
   /* Editor */

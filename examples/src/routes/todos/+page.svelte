@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { init, doc, collection, query, identity, type DocResult, type CollectionResult, type Auth, type Role } from 'svelte-locally';
+  import { init, doc, docFromUrl, collection, query, identity, type DocResult, type CollectionResult, type Auth, type Role } from 'svelte-locally';
   import { onMount } from 'svelte';
 
   // ============ Data Types ============
@@ -129,6 +129,12 @@
     }
   }
 
+  // Open a shared settings document
+  function openSharedSettings(docUrl: string) {
+    settings = docFromUrl<Settings>(docUrl);
+    showShareModal = false;
+  }
+
   // ============ Helpers ============
 
   function formatUserId(id: string): string {
@@ -217,6 +223,19 @@
             <div class="grant-item">
               <code>{formatUserId(grant.recipientDid)}</code>
               <span class="badge">{grant.role}</span>
+            </div>
+          {/each}
+        </div>
+      {/if}
+
+      {#if user && user.accessTokens.length > 0}
+        <div class="grants-section">
+          <h4>Your received access:</h4>
+          {#each user.accessTokens as access}
+            <div class="grant-item">
+              <code title={access.docUrl}>{access.docUrl.slice(0, 16)}...</code>
+              <span class="badge">{access.role}</span>
+              <button class="open-btn" onclick={() => openSharedSettings(access.docUrl)}>Open →</button>
             </div>
           {/each}
         </div>
@@ -502,6 +521,21 @@
     color: #1976D2;
     border-radius: 8px;
     font-size: 0.75rem;
+  }
+
+  .open-btn {
+    margin-left: auto;
+    padding: 0.2rem 0.5rem;
+    background: #4CAF50;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.75rem;
+  }
+
+  .open-btn:hover {
+    background: #43A047;
   }
 
   /* Todo App */
