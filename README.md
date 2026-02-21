@@ -136,10 +136,66 @@ active.count  // total before limit
 Get the user's cryptographic identity.
 
 ```typescript
-const user = await identity();
+const me = await identity();
 
-user.id    // "did:key:z6MkhaXgBZD..."
-user.did   // same as id
+me.id    // "did:key:z6MkhaXgBZD..."
+me.did   // same as id
+
+// Import access token someone sent you
+me.importAccess(tokenString);
+
+// View all received access
+me.accessTokens  // [{ docUrl, role, fromDid, ... }]
+```
+
+## Sharing
+
+Role-based access control with shareable tokens.
+
+**Roles:**
+- `reader` — can read
+- `writer` — can read + write
+- `admin` — can read + write + delegate
+
+```typescript
+// Create a shareable token
+const token = await doc.createToken('writer', { expires: '7d' });
+// Send this token however you want (DM, email, etc.)
+
+// Grant access to a specific user
+await doc.grant(recipientDid, 'reader');
+
+// Revoke access
+doc.revokeGrant(recipientDid);
+
+// View who has access
+doc.grants  // [{ recipientDid, role, expiresAt, ... }]
+
+// Generate one-click invite link
+const link = await doc.inviteLink('reader');
+// "https://app.com/doc/automerge:...#access=eyJ..."
+```
+
+**Receiving access:**
+```typescript
+const me = await identity();
+
+// Import token someone sent you
+const access = me.importAccess(tokenString);
+// { docUrl, role, fromDid, expiresAt }
+
+// Now you can open the document
+const sharedDoc = docFromUrl(access.docUrl);
+```
+
+## Offline Status
+
+Track sync state:
+
+```typescript
+doc.status.pendingChanges  // unsynced local changes
+doc.status.lastSyncedAt    // Date | null
+doc.status.online          // network available
 ```
 
 ## SSR Support
