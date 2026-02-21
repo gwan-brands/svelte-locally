@@ -1,15 +1,13 @@
 <script lang="ts">
-  import { init, doc, collection, query, identity, type DocResult, type CollectionResult } from 'svelte-locally';
+  import { init, doc, collection, query, identity, type DocResult, type CollectionResult, type Auth, type Role } from 'svelte-locally';
   import { onMount } from 'svelte';
 
   // ============ Data Types ============
 
-  // Settings stored in a single document
   interface Settings {
     listTitle: string;
   }
 
-  // Todo items stored as a collection (one doc per item)
   interface Todo {
     text: string;
     done: boolean;
@@ -18,15 +16,22 @@
 
   // ============ State ============
 
-  // These will be initialized in onMount (need $state for reactivity)
   let settings = $state<DocResult<Settings> | null>(null);
   let todos = $state<CollectionResult<Todo> | null>(null);
+  let user = $state<Auth | null>(null);
 
   // Filter state
   type Filter = 'all' | 'active' | 'done';
   let filter = $state<Filter>('all');
 
-  // Reactive filtered query (only when todos is initialized)
+  // Sharing state
+  let showShareModal = $state(false);
+  let shareToken = $state<string | null>(null);
+  let shareRole = $state<Role>('reader');
+  let importInput = $state('');
+  let importMessage = $state<{ type: 'success' | 'error', text: string } | null>(null);
+
+  // Reactive filtered query
   const filteredTodos = $derived(
     todos ? query(todos)
       .where(todo => {
@@ -37,29 +42,19 @@
       .orderBy('createdAt', 'desc') : { items: [] }
   );
 
-  // User identity
-  let userId = $state<string | null>(null);
-
   // ============ Lifecycle ============
 
   onMount(async () => {
-    // Initialize with sync enabled
-    init({
-      sync: 'wss://sync.automerge.org',
-    });
+    init({ sync: 'wss://sync.automerge.org' });
 
-    // Now create doc and collection AFTER init
     settings = doc<Settings>('todo-settings', {
       listTitle: 'My Todo List',
     });
     todos = collection<Todo>('todos');
-
-    // Get user's identity
-    const user = await identity();
-    userId = user.id;
+    user = await identity();
   });
 
-  // ============ Actions ============
+  // ============ Todo Actions ============
 
   function addTodo() {
     if (!todos) return;
@@ -98,7 +93,44 @@
     }
   }
 
-  // Format user ID for display
+  // ============ Sharing Actions ============
+
+  async function generateShareToken() {
+    if (!settings) return;
+    try {
+      shareToken = await settings.createToken(shareRole, { expires: '7d' });
+    } catch (err) {
+      console.error('Failed to create token:', err);
+    }
+  }
+
+  async function copyShareToken() {
+    if (shareToken) {
+      await navigator.clipboard.writeText(shareToken);
+      alert('Copied to clipboard!');
+    }
+  }
+
+  function handleImport() {
+    if (!user || !importInput.trim()) return;
+    
+    importMessage = null;
+    
+    try {
+      const result = user.importAccess(importInput.trim());
+      if (result) {
+        importMessage = { type: 'success', text: `✓ Imported ${result.role} access!` };
+        importInput = '';
+      } else {
+        importMessage = { type: 'error', text: 'Invalid or expired token' };
+      }
+    } catch (err) {
+      importMessage = { type: 'error', text: 'Failed to import token' };
+    }
+  }
+
+  // ============ Helpers ============
+
   function formatUserId(id: string): string {
     return id.slice(0, 12) + '...' + id.slice(-6);
   }
@@ -122,14 +154,73 @@
     <div class="status-item">
       📝 {todos?.status.totalCount ?? 0} items
     </div>
+    {#if settings?.status.pendingChanges || todos?.status.pendingChanges}
+      <div class="status-item pending">
+        ⏳ {(settings?.status.pendingChanges ?? 0) + (todos?.status.pendingChanges ?? 0)} pending
+      </div>
+    {/if}
   </section>
 
   <!-- User Identity -->
-  {#if userId}
+  {#if user}
     <section class="identity">
       <strong>Your ID:</strong>
-      <code title={userId}>{formatUserId(userId)}</code>
-      <small>(auto-generated, stored on your device)</small>
+      <code title={user.id}>{formatUserId(user.id)}</code>
+      <button class="share-btn" onclick={() => showShareModal = !showShareModal}>
+        {showShareModal ? '✕' : '🔗 Share'}
+      </button>
+    </section>
+  {/if}
+
+  <!-- Share Modal -->
+  {#if showShareModal && settings}
+    <section class="share-modal">
+      <h3>🔗 Share Your Todo List</h3>
+      
+      <div class="share-row">
+        <label>Access level:</label>
+        <select bind:value={shareRole}>
+          <option value="reader">👁️ Viewer</option>
+          <option value="writer">✏️ Editor</option>
+          <option value="admin">👑 Admin</option>
+        </select>
+        <button onclick={generateShareToken}>Generate</button>
+      </div>
+
+      {#if shareToken}
+        <div class="token-box">
+          <code>{shareToken.slice(0, 40)}...</code>
+          <button onclick={copyShareToken}>📋</button>
+        </div>
+        <p class="hint">Share this token with someone to give them {shareRole} access.</p>
+      {/if}
+
+      <hr />
+
+      <div class="share-row">
+        <input 
+          type="text" 
+          placeholder="Paste a token to import..."
+          bind:value={importInput}
+        />
+        <button onclick={handleImport}>Import</button>
+      </div>
+
+      {#if importMessage}
+        <p class={importMessage.type}>{importMessage.text}</p>
+      {/if}
+
+      {#if settings.grants.length > 0}
+        <div class="grants-section">
+          <h4>Granted access ({settings.grants.length}):</h4>
+          {#each settings.grants as grant}
+            <div class="grant-item">
+              <code>{formatUserId(grant.recipientDid)}</code>
+              <span class="badge">{grant.role}</span>
+            </div>
+          {/each}
+        </div>
+      {/if}
     </section>
   {/if}
 
@@ -186,27 +277,23 @@
           {/each}
         </ul>
       {/if}
+
+      <!-- Sync status -->
+      {#if settings.status.lastSyncedAt}
+        <p class="sync-time">
+          Last synced: {settings.status.lastSyncedAt.toLocaleTimeString()}
+        </p>
+      {/if}
     </section>
 
     <!-- Explanation -->
     <section class="explanation">
-      <h3>How it works</h3>
+      <h3>New in v0.2.0: Sharing!</h3>
       <ul>
-        <li>
-          <strong>doc()</strong> — Settings stored in a single document
-        </li>
-        <li>
-          <strong>collection()</strong> — Each todo is a separate document (scales better)
-        </li>
-        <li>
-          <strong>Works offline</strong> — Changes sync when reconnected
-        </li>
-        <li>
-          <strong>No account needed</strong> — Your identity is cryptographic
-        </li>
-        <li>
-          <strong>Conflicts auto-merge</strong> — Edit on two devices, changes combine
-        </li>
+        <li><strong>Create tokens</strong> — Generate access tokens with different roles</li>
+        <li><strong>Share anywhere</strong> — Send tokens via any channel (no server involved)</li>
+        <li><strong>Import access</strong> — Paste tokens to gain access to shared docs</li>
+        <li><strong>Offline status</strong> — See pending changes and last sync time</li>
       </ul>
     </section>
   {:else}
@@ -276,6 +363,10 @@
     background: #c8e6c9;
   }
 
+  .status-item.pending {
+    background: #fff3cd;
+  }
+
   .identity {
     background: #e3f2fd;
     padding: 1rem;
@@ -293,14 +384,127 @@
     padding: 0.2rem 0.5rem;
     border-radius: 4px;
     font-size: 0.85rem;
-    cursor: help;
   }
 
-  .identity small {
+  .share-btn {
+    margin-left: auto;
+    padding: 0.4rem 0.8rem;
+    background: #4CAF50;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+  }
+
+  .share-btn:hover {
+    background: #43A047;
+  }
+
+  /* Share Modal */
+  .share-modal {
+    background: white;
+    padding: 1.5rem;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    margin-bottom: 1.5rem;
+    border: 2px solid #4CAF50;
+  }
+
+  .share-modal h3 {
+    margin: 0 0 1rem;
+  }
+
+  .share-modal h4 {
+    margin: 1rem 0 0.5rem;
+    font-size: 0.9rem;
     color: #666;
-    width: 100%;
   }
 
+  .share-row {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 0.75rem;
+  }
+
+  .share-row select, .share-row input {
+    flex: 1;
+    padding: 0.5rem;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+  }
+
+  .share-row button {
+    padding: 0.5rem 1rem;
+    background: #2196F3;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+  }
+
+  .token-box {
+    display: flex;
+    gap: 0.5rem;
+    margin: 0.5rem 0;
+  }
+
+  .token-box code {
+    flex: 1;
+    padding: 0.5rem;
+    background: #f5f5f5;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    overflow: hidden;
+  }
+
+  .token-box button {
+    padding: 0.5rem;
+    background: #666;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+  }
+
+  .hint {
+    font-size: 0.85rem;
+    color: #666;
+    margin: 0.5rem 0;
+  }
+
+  .share-modal hr {
+    margin: 1rem 0;
+    border: none;
+    border-top: 1px solid #eee;
+  }
+
+  .success { color: #388e3c; font-size: 0.9rem; }
+  .error { color: #d32f2f; font-size: 0.9rem; }
+
+  .grants-section {
+    margin-top: 1rem;
+  }
+
+  .grant-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.4rem;
+    background: #f9f9f9;
+    border-radius: 4px;
+    margin-top: 0.25rem;
+    font-size: 0.85rem;
+  }
+
+  .badge {
+    padding: 0.1rem 0.4rem;
+    background: #e3f2fd;
+    color: #1976D2;
+    border-radius: 8px;
+    font-size: 0.75rem;
+  }
+
+  /* Todo App */
   .todo-app {
     background: white;
     padding: 1.5rem;
@@ -426,8 +630,15 @@
     font-style: italic;
   }
 
+  .sync-time {
+    font-size: 0.8rem;
+    color: #999;
+    text-align: right;
+    margin: 1rem 0 0;
+  }
+
   .explanation {
-    background: #fff8e1;
+    background: #e8f5e9;
     padding: 1.5rem;
     border-radius: 12px;
   }
@@ -435,6 +646,7 @@
   .explanation h3 {
     margin: 0 0 1rem;
     font-size: 1.1rem;
+    color: #2e7d32;
   }
 
   .explanation ul {
@@ -444,10 +656,6 @@
 
   .explanation li {
     margin: 0.75rem 0;
-  }
-
-  .explanation strong {
-    color: #333;
   }
 
   .loading-message {

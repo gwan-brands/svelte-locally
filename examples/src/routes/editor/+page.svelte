@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { init, doc, identity, type DocResult } from 'svelte-locally';
+  import { init, doc, identity, type DocResult, type Auth, type Role } from 'svelte-locally';
   import { onMount } from 'svelte';
 
   // Document structure
@@ -11,35 +11,35 @@
 
   // State
   let note = $state<DocResult<Note> | null>(null);
-  let userId = $state<string | null>(null);
+  let user = $state<Auth | null>(null);
 
   // Local editing state
   let titleInput = $state('');
   let contentInput = $state('');
   let isSyncing = $state(false);
-
-  // Track if we're currently editing (to avoid overwriting user input)
   let isEditing = $state(false);
 
-  onMount(async () => {
-    // Initialize with sync
-    init({
-      sync: 'wss://sync.automerge.org',
-    });
+  // Sharing state
+  let showSharePanel = $state(false);
+  let shareToken = $state<string | null>(null);
+  let shareRole = $state<Role>('reader');
+  let importToken = $state('');
+  let importError = $state<string | null>(null);
+  let importSuccess = $state(false);
 
-    // Create or load the shared note
+  onMount(async () => {
+    init({ sync: 'wss://sync.automerge.org' });
+
     note = doc<Note>('shared-note', {
       title: 'Untitled Note',
       content: '',
       lastEdited: Date.now(),
     });
 
-    // Get user identity
-    const user = await identity();
-    userId = user.id;
+    user = await identity();
   });
 
-  // Sync remote changes to local state (top-level $effect)
+  // Sync remote changes to local state
   $effect(() => {
     if (note?.data && !isEditing) {
       titleInput = note.data.title;
@@ -81,6 +81,43 @@
     }, 50);
   }
 
+  // Sharing functions
+  async function createShareToken() {
+    if (!note) return;
+    try {
+      shareToken = await note.createToken(shareRole, { expires: '7d' });
+    } catch (err) {
+      console.error('Failed to create share token:', err);
+    }
+  }
+
+  async function copyToken() {
+    if (shareToken) {
+      await navigator.clipboard.writeText(shareToken);
+      alert('Token copied to clipboard!');
+    }
+  }
+
+  function handleImportToken() {
+    if (!user || !importToken.trim()) return;
+    
+    importError = null;
+    importSuccess = false;
+    
+    try {
+      const result = user.importAccess(importToken.trim());
+      if (result) {
+        importSuccess = true;
+        importToken = '';
+        setTimeout(() => { importSuccess = false; }, 3000);
+      } else {
+        importError = 'Invalid or expired token';
+      }
+    } catch (err) {
+      importError = err instanceof Error ? err.message : 'Failed to import token';
+    }
+  }
+
   function formatTime(timestamp: number): string {
     return new Date(timestamp).toLocaleTimeString();
   }
@@ -94,7 +131,7 @@
   <header>
     <a href="/" class="back">← Back</a>
     <h1>📝 Collaborative Editor</h1>
-    <p>Open this page in two tabs — edits sync in real-time</p>
+    <p>Real-time sync with sharing controls</p>
   </header>
 
   <!-- Status Bar -->
@@ -108,13 +145,104 @@
     <div class="status-item" class:syncing={isSyncing}>
       {isSyncing ? '💾 Saving...' : '✓ Saved'}
     </div>
+    {#if note?.status.pendingChanges}
+      <div class="status-item pending">
+        {note.status.pendingChanges} pending
+      </div>
+    {/if}
   </section>
 
   <!-- User Identity -->
-  {#if userId}
+  {#if user}
     <section class="identity">
       <strong>Your ID:</strong>
-      <code title={userId}>{formatUserId(userId)}</code>
+      <code title={user.id}>{formatUserId(user.id)}</code>
+      <button class="share-btn" onclick={() => showSharePanel = !showSharePanel}>
+        {showSharePanel ? '✕ Close' : '🔗 Share'}
+      </button>
+    </section>
+  {/if}
+
+  <!-- Share Panel -->
+  {#if showSharePanel && note}
+    <section class="share-panel">
+      <h3>🔗 Share This Document</h3>
+      
+      <!-- Create Token -->
+      <div class="share-section">
+        <h4>Create Share Token</h4>
+        <div class="share-controls">
+          <select bind:value={shareRole}>
+            <option value="reader">👁️ Reader (view only)</option>
+            <option value="writer">✏️ Writer (can edit)</option>
+            <option value="admin">👑 Admin (full control)</option>
+          </select>
+          <button onclick={createShareToken}>Generate Token</button>
+        </div>
+        
+        {#if shareToken}
+          <div class="token-display">
+            <code>{shareToken.slice(0, 50)}...</code>
+            <button onclick={copyToken}>📋 Copy</button>
+          </div>
+          <p class="token-hint">Send this token to someone to grant them {shareRole} access.</p>
+        {/if}
+      </div>
+
+      <!-- Import Token -->
+      <div class="share-section">
+        <h4>Import Access Token</h4>
+        <div class="import-controls">
+          <input 
+            type="text" 
+            placeholder="Paste token here..."
+            bind:value={importToken}
+          />
+          <button onclick={handleImportToken}>Import</button>
+        </div>
+        {#if importError}
+          <p class="error">{importError}</p>
+        {/if}
+        {#if importSuccess}
+          <p class="success">✓ Access imported successfully!</p>
+        {/if}
+      </div>
+
+      <!-- Current Grants -->
+      <div class="share-section">
+        <h4>Access Grants ({note.grants.length})</h4>
+        {#if note.grants.length === 0}
+          <p class="no-grants">No access granted yet.</p>
+        {:else}
+          <ul class="grants-list">
+            {#each note.grants as grant}
+              <li>
+                <code>{formatUserId(grant.recipientDid)}</code>
+                <span class="role-badge">{grant.role}</span>
+                {#if grant.expiresAt}
+                  <span class="expires">expires {new Date(grant.expiresAt).toLocaleDateString()}</span>
+                {/if}
+              </li>
+            {/each}
+          </ul>
+        {/if}
+      </div>
+
+      <!-- Your Received Access -->
+      {#if user && user.accessTokens.length > 0}
+        <div class="share-section">
+          <h4>Your Received Access</h4>
+          <ul class="grants-list">
+            {#each user.accessTokens as access}
+              <li>
+                <code>{access.docUrl.slice(0, 20)}...</code>
+                <span class="role-badge">{access.role}</span>
+                <span class="from">from {formatUserId(access.fromDid)}</span>
+              </li>
+            {/each}
+          </ul>
+        </div>
+      {/if}
     </section>
   {/if}
 
@@ -139,21 +267,24 @@
 
       <div class="meta">
         Last edited: {formatTime(note.data.lastEdited)}
+        {#if note.status.lastSyncedAt}
+          · Synced: {formatTime(note.status.lastSyncedAt.getTime())}
+        {/if}
       </div>
     </section>
 
     <!-- Instructions -->
     <section class="instructions">
-      <h3>Try this:</h3>
+      <h3>How sharing works:</h3>
       <ol>
-        <li>Open this page in a <strong>second browser tab</strong></li>
-        <li>Type something in one tab</li>
-        <li>Watch it appear in the other tab instantly</li>
-        <li>Try editing <strong>both tabs at once</strong> — changes merge automatically!</li>
+        <li><strong>Create a token</strong> — Choose a role and generate</li>
+        <li><strong>Send the token</strong> — Copy and send via any channel</li>
+        <li><strong>Recipient imports</strong> — They paste and import</li>
+        <li><strong>Access granted!</strong> — They can now view/edit</li>
       </ol>
       <p class="note">
-        💡 The sync happens through <code>wss://sync.automerge.org</code> —
-        a public relay server. Your data is end-to-end encrypted.
+        💡 Tokens are <strong>self-contained</strong> — no server stores who has access.
+        The recipient proves access with the token itself (UCAN).
       </p>
     </section>
   {:else}
@@ -227,6 +358,10 @@
     background: #fff3cd;
   }
 
+  .status-item.pending {
+    background: #ffcdd2;
+  }
+
   .identity {
     background: #e3f2fd;
     padding: 0.75rem 1rem;
@@ -245,6 +380,170 @@
     font-size: 0.85rem;
   }
 
+  .share-btn {
+    margin-left: auto;
+    padding: 0.4rem 0.8rem;
+    background: #4CAF50;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.85rem;
+  }
+
+  .share-btn:hover {
+    background: #43A047;
+  }
+
+  /* Share Panel */
+  .share-panel {
+    background: white;
+    padding: 1.5rem;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    margin-bottom: 1.5rem;
+    border: 2px solid #4CAF50;
+  }
+
+  .share-panel h3 {
+    margin: 0 0 1rem;
+    font-size: 1.2rem;
+  }
+
+  .share-section {
+    margin-bottom: 1.5rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid #eee;
+  }
+
+  .share-section:last-child {
+    margin-bottom: 0;
+    padding-bottom: 0;
+    border-bottom: none;
+  }
+
+  .share-section h4 {
+    margin: 0 0 0.75rem;
+    font-size: 0.95rem;
+    color: #666;
+  }
+
+  .share-controls, .import-controls {
+    display: flex;
+    gap: 0.5rem;
+  }
+
+  .share-controls select, .import-controls input {
+    flex: 1;
+    padding: 0.5rem;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    font-size: 0.9rem;
+  }
+
+  .share-controls button, .import-controls button {
+    padding: 0.5rem 1rem;
+    background: #2196F3;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+  }
+
+  .share-controls button:hover, .import-controls button:hover {
+    background: #1976D2;
+  }
+
+  .token-display {
+    margin-top: 0.75rem;
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+  }
+
+  .token-display code {
+    flex: 1;
+    padding: 0.5rem;
+    background: #f5f5f5;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .token-display button {
+    padding: 0.4rem 0.8rem;
+    background: #666;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.85rem;
+  }
+
+  .token-hint {
+    margin: 0.5rem 0 0;
+    font-size: 0.85rem;
+    color: #666;
+  }
+
+  .error {
+    color: #d32f2f;
+    margin: 0.5rem 0 0;
+    font-size: 0.85rem;
+  }
+
+  .success {
+    color: #388e3c;
+    margin: 0.5rem 0 0;
+    font-size: 0.85rem;
+  }
+
+  .no-grants {
+    color: #999;
+    font-style: italic;
+    margin: 0;
+  }
+
+  .grants-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+
+  .grants-list li {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem;
+    background: #f9f9f9;
+    border-radius: 4px;
+    margin-bottom: 0.5rem;
+    font-size: 0.85rem;
+  }
+
+  .grants-list code {
+    background: rgba(0,0,0,0.1);
+    padding: 0.15rem 0.4rem;
+    border-radius: 3px;
+  }
+
+  .role-badge {
+    padding: 0.15rem 0.5rem;
+    background: #e3f2fd;
+    color: #1976D2;
+    border-radius: 10px;
+    font-size: 0.75rem;
+    font-weight: 500;
+  }
+
+  .expires, .from {
+    color: #999;
+    font-size: 0.8rem;
+    margin-left: auto;
+  }
+
+  /* Editor */
   .editor {
     background: white;
     padding: 1.5rem;
@@ -318,13 +617,6 @@
     margin: 0;
     font-size: 0.9rem;
     color: #666;
-  }
-
-  .instructions code {
-    background: rgba(0,0,0,0.1);
-    padding: 0.1rem 0.4rem;
-    border-radius: 3px;
-    font-size: 0.85rem;
   }
 
   .loading {
