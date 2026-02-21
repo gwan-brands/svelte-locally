@@ -129,9 +129,19 @@
     }
   }
 
+  // Shared doc URL state
+  let viewingSharedUrl = $state<string | null>(null);
+
+  // Watch for URL changes
+  $effect(() => {
+    if (viewingSharedUrl) {
+      settings = docFromUrl<Settings>(viewingSharedUrl);
+    }
+  });
+
   // Open a shared settings document
   function openSharedSettings(docUrl: string) {
-    settings = docFromUrl<Settings>(docUrl);
+    viewingSharedUrl = docUrl;
     showShareModal = false;
   }
 

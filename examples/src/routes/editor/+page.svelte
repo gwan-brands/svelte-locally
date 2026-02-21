@@ -9,10 +9,10 @@
     lastEdited: number;
   }
 
-  // State
+  // State - which doc to view
+  let viewingSharedUrl = $state<string | null>(null);
   let note = $state<DocResult<Note> | null>(null);
   let user = $state<Auth | null>(null);
-  let currentDocName = $state<string>('shared-note');
 
   // Local editing state
   let titleInput = $state('');
@@ -30,22 +30,28 @@
 
   onMount(async () => {
     init({ sync: 'wss://sync.automerge.org' });
-
+    
+    // Load the default note
     note = doc<Note>('shared-note', {
       title: 'Untitled Note',
       content: '',
       lastEdited: Date.now(),
     });
-
+    
     user = await identity();
+  });
+
+  // Watch for URL changes and load appropriate doc
+  $effect(() => {
+    if (viewingSharedUrl) {
+      note = docFromUrl<Note>(viewingSharedUrl);
+    }
   });
 
   // Open a shared document by URL
   function openSharedDoc(docUrl: string) {
-    note = docFromUrl<Note>(docUrl);
-    currentDocName = docUrl.slice(0, 20) + '...';
+    viewingSharedUrl = docUrl;
     showSharePanel = false;
-    // Reset editing state
     isEditing = false;
     titleInput = '';
     contentInput = '';
@@ -53,12 +59,12 @@
 
   // Go back to own document
   function openOwnDoc() {
+    viewingSharedUrl = null;
     note = doc<Note>('shared-note', {
       title: 'Untitled Note',
       content: '',
       lastEdited: Date.now(),
     });
-    currentDocName = 'shared-note';
   }
 
   // Sync remote changes to local state
