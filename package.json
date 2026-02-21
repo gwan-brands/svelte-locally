@@ -1,0 +1,73 @@
+{
+  "name": "svelte-locally",
+  "version": "0.1.0",
+  "description": "Local-first data sync for Svelte with Automerge CRDTs and decentralized auth",
+  "type": "module",
+  "svelte": "./src/index.ts",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "check": "svelte-check --tsconfig ./tsconfig.json",
+    "dev:example": "cd examples && npm run dev"
+  },
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "svelte": "./src/index.ts",
+      "default": "./src/index.ts"
+    }
+  },
+  "files": [
+    "src",
+    "README.md",
+    "LICENSE"
+  ],
+  "keywords": [
+    "svelte",
+    "svelte5",
+    "local-first",
+    "offline-first",
+    "crdt",
+    "automerge",
+    "ucan",
+    "sync",
+    "p2p",
+    "decentralized"
+  ],
+  "author": {
+    "name": "Joe O'Heron",
+    "url": "https://github.com/gwan-co"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/gwan-co/svelte-locally.git"
+  },
+  "bugs": {
+    "url": "https://github.com/gwan-co/svelte-locally/issues"
+  },
+  "homepage": "https://github.com/gwan-co/svelte-locally#readme",
+  "peerDependencies": {
+    "svelte": "^5.0.0"
+  },
+  "dependencies": {
+    "@automerge/automerge": "^2.2.8",
+    "@automerge/automerge-repo": "^1.2.1",
+    "@automerge/automerge-repo-network-broadcastchannel": "^1.2.1",
+    "@automerge/automerge-repo-network-websocket": "^1.2.1",
+    "@automerge/automerge-repo-storage-indexeddb": "^1.2.1",
+    "@noble/ed25519": "^3.0.0",
+    "@noble/hashes": "^2.0.1",
+    "@ucans/ucans": "^0.12.0"
+  },
+  "devDependencies": {
+    "jsdom": "^26.0.0",
+    "svelte": "^5.20.0",
+    "svelte-check": "^4.0.0",
+    "typescript": "^5.7.0",
+    "vitest": "^3.0.0"
+  }
+}
