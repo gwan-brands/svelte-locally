@@ -244,6 +244,7 @@ export function doc<T extends object>(
       const onChange = () => {
         data = handle.docSync();
         status.lastSyncedAt = new Date();
+        status.pendingChanges = 0; // Reset on sync
         notifySubscribers();
       };
       
@@ -469,6 +470,7 @@ export function docFromUrl<T extends object>(
       const onChange = () => {
         data = handle.docSync();
         status.lastSyncedAt = new Date();
+        status.pendingChanges = 0; // Reset on sync
         notifySubscribers();
       };
       
