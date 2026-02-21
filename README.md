@@ -1,7 +1,7 @@
 # svelte-locally
 
 [![npm version](https://img.shields.io/npm/v/svelte-locally.svg)](https://www.npmjs.com/package/svelte-locally)
-[![license](https://img.shields.io/npm/l/svelte-locally.svg)](https://github.com/gwan-co/svelte-locally/blob/main/LICENSE)
+[![license](https://img.shields.io/npm/l/svelte-locally.svg)](https://github.com/gwan-brands/svelte-locally/blob/main/LICENSE)
 
 Local-first data sync for Svelte 5.
 
@@ -211,4 +211,4 @@ Full documentation in the [docs](./docs) directory:
 
 ## License
 
-MIT © [Joe O'Heron](https://github.com/gwan-co)
+MIT © [Joe O'Heron](https://github.com/gwan-brands)

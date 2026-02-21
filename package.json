@@ -39,17 +39,17 @@
   ],
   "author": {
     "name": "Joe O'Heron",
-    "url": "https://github.com/gwan-co"
+    "url": "https://github.com/gwan-brands"
   },
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/gwan-co/svelte-locally.git"
+    "url": "git+https://github.com/gwan-brands/svelte-locally.git"
   },
   "bugs": {
-    "url": "https://github.com/gwan-co/svelte-locally/issues"
+    "url": "https://github.com/gwan-brands/svelte-locally/issues"
   },
-  "homepage": "https://github.com/gwan-co/svelte-locally#readme",
+  "homepage": "https://github.com/gwan-brands/svelte-locally#readme",
   "peerDependencies": {
     "svelte": "^5.0.0"
   },

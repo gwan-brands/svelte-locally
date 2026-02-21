@@ -21,6 +21,6 @@
     "vite-plugin-wasm": "^3.5.0"
   },
   "dependencies": {
-    "svelte-locally": "link:.."
+    "svelte-locally": "file:.."
   }
 }
