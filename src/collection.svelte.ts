@@ -205,7 +205,7 @@ export function collection<T extends object>(
     itemHandles.set(id, handle);
     
     const updateItem = () => {
-      const doc = handle.docSync();
+      const doc = handle.doc();
       if (!doc) return;
       
       // Update or add to items array
@@ -357,7 +357,7 @@ export function collection<T extends object>(
       
       // Handle manifest changes
       const onManifestChange = () => {
-        const manifest = manifestHandle!.docSync();
+        const manifest = manifestHandle!.doc();
         if (manifest) {
           syncWithManifest(manifest);
         }
@@ -441,7 +441,7 @@ export function collection<T extends object>(
       
       // Set up change listener for this item
       const updateItem = () => {
-        const doc = itemHandle.docSync();
+        const doc = itemHandle.doc();
         if (!doc) return;
         
         const index = items.findIndex(item => item.id === id);
@@ -512,7 +512,7 @@ export function collection<T extends object>(
       });
       
       // Update totalCount based on actual manifest state
-      const manifest = manifestHandle.docSync();
+      const manifest = manifestHandle.doc();
       status.totalCount = manifest ? manifest.order.length : 0;
     },
     

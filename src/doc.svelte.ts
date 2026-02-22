@@ -282,11 +282,11 @@ export function doc<T extends object>(
       }
       
       currentHandle = handle;
-      data = handle.docSync() ?? initial;
+      data = handle.doc() ?? initial;
       status.ready = handle.isReady();
       
       const onChange = () => {
-        data = handle.docSync();
+        data = handle.doc();
         status.lastSyncedAt = new Date();
         status.pendingChanges = 0; // Reset on sync
         notifySubscribers();
@@ -303,7 +303,7 @@ export function doc<T extends object>(
       window.addEventListener('offline', onOffline);
       
       if (handle.isReady()) {
-        data = handle.docSync();
+        data = handle.doc();
         status.ready = true;
         status.lastSyncedAt = new Date();
         retryCount = 0;
@@ -312,7 +312,7 @@ export function doc<T extends object>(
         status.syncing = true;
         handle.whenReady()
           .then(() => {
-            data = handle.docSync();
+            data = handle.doc();
             status.ready = true;
             status.syncing = false;
             status.error = null;
@@ -553,7 +553,7 @@ export function docFromUrl<T extends object>(
       currentHandle = handle;
       
       const onChange = () => {
-        data = handle.docSync();
+        data = handle.doc();
         status.lastSyncedAt = new Date();
         status.pendingChanges = 0; // Reset on sync
         notifySubscribers();
@@ -570,7 +570,7 @@ export function docFromUrl<T extends object>(
       window.addEventListener('offline', onOffline);
       
       if (handle.isReady()) {
-        data = handle.docSync();
+        data = handle.doc();
         status.ready = true;
         status.syncing = false;
         status.lastSyncedAt = new Date();
@@ -580,7 +580,7 @@ export function docFromUrl<T extends object>(
         status.syncing = true;
         handle.whenReady()
           .then(() => {
-            data = handle.docSync();
+            data = handle.doc();
             status.ready = true;
             status.syncing = false;
             status.error = null;
