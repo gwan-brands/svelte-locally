@@ -64,8 +64,14 @@ init({
   sync: 'wss://sync.automerge.org',  // Sync server (optional)
   storage: true,                       // IndexedDB (default: true)
   broadcastChannel: true,              // Tab sync (default: true)
+  sharePolicy: 'explicit',             // Only sync shared docs (default)
 });
 ```
+
+**Share Policy:**
+- `'explicit'` (default) — Only sync documents with issued/received tokens (secure)
+- `'all'` — Sync all documents with any peer (open)
+- Custom function — `(peerId, docId) => Promise<boolean>`
 
 ### `doc(id, initial)`
 

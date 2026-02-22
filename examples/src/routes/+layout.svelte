@@ -5,7 +5,8 @@
   onMount(() => {
     init({ 
       sync: 'wss://sync.automerge.org',
-      // sharePolicy: 'explicit', // Uncomment to only sync docs with tokens
+      // Default sharePolicy is 'explicit' (secure)
+      // Use sharePolicy: 'all' to share everything openly
     });
   });
 </script>

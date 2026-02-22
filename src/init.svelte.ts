@@ -57,10 +57,10 @@ export interface InitConfig {
 
   /**
    * Share policy: control which documents sync with other peers
-   * - 'all': Share all documents (default, open)
-   * - 'explicit': Only share documents with issued tokens
+   * - 'explicit': Only share documents with issued/received tokens (default, secure)
+   * - 'all': Share all documents (open)
    * - custom function: (peerId, docId) => boolean
-   * @default 'all'
+   * @default 'explicit'
    */
   sharePolicy?: 'all' | 'explicit' | ((peerId: string, documentId: string) => Promise<boolean>);
 }
@@ -137,11 +137,21 @@ export function init(options: InitConfig = {}): void {
     }
   }
 
-  // Build share policy
+  // Build share policy (default: explicit — only share docs with tokens)
   let sharePolicy: ((peerId: PeerId, documentId?: DocumentId) => Promise<boolean>) | undefined;
   
-  if (config.sharePolicy === 'explicit') {
-    // Only share documents we've explicitly shared (have tokens issued or received)
+  if (config.sharePolicy === 'all') {
+    // Share everything with everyone (open mode)
+    sharePolicy = undefined;
+  } else if (typeof config.sharePolicy === 'function') {
+    // Custom share policy
+    const customPolicy = config.sharePolicy;
+    sharePolicy = async (peerId: PeerId, documentId?: DocumentId) => {
+      if (!documentId) return false;
+      return customPolicy(peerId as string, documentId as string);
+    };
+  } else {
+    // Default: 'explicit' — only share documents with issued/received tokens
     sharePolicy = async (_peerId: PeerId, documentId?: DocumentId) => {
       if (!documentId) return false;
       const docUrl = `automerge:${documentId}`;
@@ -150,15 +160,7 @@ export function init(options: InitConfig = {}): void {
       const received = getReceivedGrantForDoc(docUrl);
       return issued.length > 0 || received !== null;
     };
-  } else if (typeof config.sharePolicy === 'function') {
-    // Custom share policy
-    const customPolicy = config.sharePolicy;
-    sharePolicy = async (peerId: PeerId, documentId?: DocumentId) => {
-      if (!documentId) return false;
-      return customPolicy(peerId as string, documentId as string);
-    };
   }
-  // 'all' or undefined = no sharePolicy (default: share everything)
 
   // Create Repo
   repo = new Repo({
