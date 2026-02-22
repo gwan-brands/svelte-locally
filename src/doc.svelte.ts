@@ -229,30 +229,35 @@ export function doc<T extends object>(
       const existingUrl = getStoredUrl(id);
       
       if (existingUrl) {
-        // Use findWithProgress for loading progress updates
-        const progress = repo.findWithProgress<T>(existingUrl);
-        
-        // Subscribe to progress updates if available
-        let unsubProgress: (() => void) | null = null;
-        if ('subscribe' in progress) {
-          unsubProgress = progress.subscribe((p) => {
-            if (p.state === 'loading' && 'progress' in p) {
-              status.loadProgress = Math.round(p.progress * 100);
-            } else if (p.state === 'ready') {
-              status.loadProgress = 100;
-            }
-          });
-        }
-        
-        // Wait for document to be ready
-        if ('untilReady' in progress) {
-          handle = await progress.untilReady(['ready', 'unavailable']);
+        // Try findWithProgress for loading updates, fall back to find()
+        if (typeof repo.findWithProgress === 'function') {
+          const progress = repo.findWithProgress<T>(existingUrl);
+          
+          // Subscribe to progress updates if available
+          let unsubProgress: (() => void) | null = null;
+          if ('subscribe' in progress) {
+            unsubProgress = progress.subscribe((p) => {
+              if (p.state === 'loading' && 'progress' in p) {
+                status.loadProgress = Math.round(p.progress * 100);
+              } else if (p.state === 'ready') {
+                status.loadProgress = 100;
+              }
+            });
+          }
+          
+          // Wait for document to be ready
+          if ('untilReady' in progress) {
+            handle = await progress.untilReady(['ready', 'unavailable']);
+          } else {
+            handle = await repo.find<T>(existingUrl);
+          }
+          
+          // Cleanup progress subscription
+          if (unsubProgress) unsubProgress();
         } else {
+          // Fallback for older automerge-repo versions
           handle = await repo.find<T>(existingUrl);
         }
-        
-        // Cleanup progress subscription
-        if (unsubProgress) unsubProgress();
         
         currentUrl = existingUrl;
         status.loadProgress = 100;
@@ -513,31 +518,36 @@ export function docFromUrl<T extends object>(
       status.error = null;
       const repo = getRepo();
       
-      // Use findWithProgress for loading progress updates
-      const progress = repo.findWithProgress<T>(url);
-      
-      // Subscribe to progress updates if available
-      let unsubProgress: (() => void) | null = null;
-      if ('subscribe' in progress) {
-        unsubProgress = progress.subscribe((p) => {
-          if (p.state === 'loading' && 'progress' in p) {
-            status.loadProgress = Math.round(p.progress * 100);
-          } else if (p.state === 'ready') {
-            status.loadProgress = 100;
-          }
-        });
-      }
-      
-      // Wait for document to be ready
+      // Try findWithProgress for loading updates, fall back to find()
       let handle: DocHandle<T>;
-      if ('untilReady' in progress) {
-        handle = await progress.untilReady(['ready', 'unavailable']);
+      if (typeof repo.findWithProgress === 'function') {
+        const progress = repo.findWithProgress<T>(url);
+        
+        // Subscribe to progress updates if available
+        let unsubProgress: (() => void) | null = null;
+        if ('subscribe' in progress) {
+          unsubProgress = progress.subscribe((p) => {
+            if (p.state === 'loading' && 'progress' in p) {
+              status.loadProgress = Math.round(p.progress * 100);
+            } else if (p.state === 'ready') {
+              status.loadProgress = 100;
+            }
+          });
+        }
+        
+        // Wait for document to be ready
+        if ('untilReady' in progress) {
+          handle = await progress.untilReady(['ready', 'unavailable']);
+        } else {
+          handle = await repo.find<T>(url);
+        }
+        
+        // Cleanup progress subscription
+        if (unsubProgress) unsubProgress();
       } else {
+        // Fallback for older automerge-repo versions
         handle = await repo.find<T>(url);
       }
-      
-      // Cleanup progress subscription
-      if (unsubProgress) unsubProgress();
       status.loadProgress = 100;
       
       currentHandle = handle;

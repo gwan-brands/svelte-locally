@@ -92,7 +92,7 @@
     }
 
     // Import document from file
-    let fileInput: HTMLInputElement;
+    let fileInput = $state<HTMLInputElement | null>(null);
     async function handleFileImport(event: Event) {
         const input = event.target as HTMLInputElement;
         const file = input.files?.[0];
@@ -258,7 +258,7 @@
                     bind:this={fileInput}
                     style="display: none"
                 />
-                <button class="action-btn" onclick={() => fileInput.click()} title="Restore from backup">
+                <button class="action-btn" onclick={() => fileInput?.click()} title="Restore from backup">
                     📤 Restore
                 </button>
                 <button
