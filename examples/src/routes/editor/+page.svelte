@@ -2,6 +2,7 @@
     import {
         doc,
         docFromId,
+        importDoc,
         identity,
         type DocResult,
         type Auth,
@@ -71,6 +72,43 @@
     function openOwnDoc() {
         viewingSharedId = null;
         // The $effect above will handle loading the doc
+    }
+
+    // Export document to file
+    async function exportDocument() {
+        if (!note) return;
+        const binary = await note.export();
+        if (!binary) {
+            alert("Failed to export document");
+            return;
+        }
+        const blob = new Blob([binary], { type: "application/octet-stream" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `${note.data?.title || "document"}.backup`;
+        a.click();
+        URL.revokeObjectURL(url);
+    }
+
+    // Import document from file
+    let fileInput: HTMLInputElement;
+    async function handleFileImport(event: Event) {
+        const input = event.target as HTMLInputElement;
+        const file = input.files?.[0];
+        if (!file) return;
+
+        const buffer = await file.arrayBuffer();
+        const binary = new Uint8Array(buffer);
+        const imported = importDoc<Note>(binary);
+        
+        // Switch to the imported document
+        if (imported.id) {
+            viewingSharedId = imported.id;
+        }
+        
+        // Reset file input
+        input.value = "";
     }
 
     // Sync remote changes to local state
@@ -173,6 +211,19 @@
         <p>Real-time sync with sharing controls</p>
     </header>
 
+    <!-- Loading Progress -->
+    {#if note && !note.status.ready && note.status.loadProgress < 100}
+        <section class="loading-section">
+            <div class="progress-bar">
+                <div 
+                    class="progress-fill" 
+                    style="width: {note.status.loadProgress}%"
+                ></div>
+            </div>
+            <p class="progress-text">Loading... {note.status.loadProgress}%</p>
+        </section>
+    {/if}
+
     <!-- Status Bar -->
     <section class="status-bar">
         <div class="status-item" class:active={note?.status.ready}>
@@ -191,17 +242,32 @@
         {/if}
     </section>
 
-    <!-- User Identity -->
+    <!-- User Identity & Actions -->
     {#if user}
         <section class="identity">
             <strong>Your ID:</strong>
             <code title={user.id}>{formatUserId(user.id)}</code>
-            <button
-                class="share-btn"
-                onclick={() => (showSharePanel = !showSharePanel)}
-            >
-                {showSharePanel ? "✕ Close" : "🔗 Share"}
-            </button>
+            <div class="identity-actions">
+                <button class="action-btn" onclick={exportDocument} title="Download backup">
+                    📥 Backup
+                </button>
+                <input 
+                    type="file" 
+                    accept=".backup" 
+                    onchange={handleFileImport}
+                    bind:this={fileInput}
+                    style="display: none"
+                />
+                <button class="action-btn" onclick={() => fileInput.click()} title="Restore from backup">
+                    📤 Restore
+                </button>
+                <button
+                    class="share-btn"
+                    onclick={() => (showSharePanel = !showSharePanel)}
+                >
+                    {showSharePanel ? "✕ Close" : "🔗 Share"}
+                </button>
+            </div>
         </section>
     {/if}
 
@@ -439,6 +505,32 @@
         background: #ffcdd2;
     }
 
+    /* Loading Progress */
+    .loading-section {
+        margin-bottom: 1.5rem;
+        text-align: center;
+    }
+
+    .progress-bar {
+        height: 8px;
+        background: #e0e0e0;
+        border-radius: 4px;
+        overflow: hidden;
+        margin-bottom: 0.5rem;
+    }
+
+    .progress-fill {
+        height: 100%;
+        background: linear-gradient(90deg, #4caf50, #8bc34a);
+        transition: width 0.3s ease;
+    }
+
+    .progress-text {
+        font-size: 0.85rem;
+        color: #666;
+        margin: 0;
+    }
+
     .identity {
         background: #e3f2fd;
         padding: 0.75rem 1rem;
@@ -448,6 +540,7 @@
         display: flex;
         align-items: center;
         gap: 0.5rem;
+        flex-wrap: wrap;
     }
 
     .identity code {
@@ -457,8 +550,27 @@
         font-size: 0.85rem;
     }
 
-    .share-btn {
+    .identity-actions {
         margin-left: auto;
+        display: flex;
+        gap: 0.5rem;
+    }
+
+    .action-btn {
+        padding: 0.4rem 0.8rem;
+        background: #666;
+        color: white;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 0.8rem;
+    }
+
+    .action-btn:hover {
+        background: #555;
+    }
+
+    .share-btn {
         padding: 0.4rem 0.8rem;
         background: #4caf50;
         color: white;

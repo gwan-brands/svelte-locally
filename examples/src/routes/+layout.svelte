@@ -3,7 +3,10 @@
   import { onMount } from 'svelte';
 
   onMount(() => {
-    init({ sync: 'wss://sync.automerge.org' });
+    init({ 
+      sync: 'wss://sync.automerge.org',
+      // sharePolicy: 'explicit', // Uncomment to only sync docs with tokens
+    });
   });
 </script>
 

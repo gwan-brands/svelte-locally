@@ -13,10 +13,11 @@
  * ```
  */
 
-import { Repo } from '@automerge/automerge-repo';
+import { Repo, type PeerId, type DocumentId } from '@automerge/automerge-repo';
 import { BroadcastChannelNetworkAdapter } from '@automerge/automerge-repo-network-broadcastchannel';
 import { IndexedDBStorageAdapter } from '@automerge/automerge-repo-storage-indexeddb';
 import { BrowserWebSocketClientAdapter } from '@automerge/automerge-repo-network-websocket';
+import { getGrantsForDoc, getReceivedGrantForDoc } from './auth/grants';
 
 // ============ Configuration Types ============
 
@@ -53,6 +54,15 @@ export interface InitConfig {
     /** Compact on interval (e.g., '1h', '30m') */
     interval?: string;
   };
+
+  /**
+   * Share policy: control which documents sync with other peers
+   * - 'all': Share all documents (default, open)
+   * - 'explicit': Only share documents with issued tokens
+   * - custom function: (peerId, docId) => boolean
+   * @default 'all'
+   */
+  sharePolicy?: 'all' | 'explicit' | ((peerId: string, documentId: string) => Promise<boolean>);
 }
 
 // ============ Environment Detection ============
@@ -127,10 +137,34 @@ export function init(options: InitConfig = {}): void {
     }
   }
 
+  // Build share policy
+  let sharePolicy: ((peerId: PeerId, documentId?: DocumentId) => Promise<boolean>) | undefined;
+  
+  if (config.sharePolicy === 'explicit') {
+    // Only share documents we've explicitly shared (have tokens issued or received)
+    sharePolicy = async (_peerId: PeerId, documentId?: DocumentId) => {
+      if (!documentId) return false;
+      const docUrl = `automerge:${documentId}`;
+      // Check if we've issued grants OR received access
+      const issued = getGrantsForDoc(docUrl);
+      const received = getReceivedGrantForDoc(docUrl);
+      return issued.length > 0 || received !== null;
+    };
+  } else if (typeof config.sharePolicy === 'function') {
+    // Custom share policy
+    const customPolicy = config.sharePolicy;
+    sharePolicy = async (peerId: PeerId, documentId?: DocumentId) => {
+      if (!documentId) return false;
+      return customPolicy(peerId as string, documentId as string);
+    };
+  }
+  // 'all' or undefined = no sharePolicy (default: share everything)
+
   // Create Repo
   repo = new Repo({
     storage: config.storage ? new IndexedDBStorageAdapter() : undefined,
     network: networkAdapters,
+    sharePolicy,
   });
 
   initialized = true;
