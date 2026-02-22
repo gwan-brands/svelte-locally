@@ -34,8 +34,8 @@ npm install svelte-locally
     if (!todos) return;
     const text = prompt('Todo text:');
     if (text) {
-      todos.change(draft => {
-        draft.items.push({ text, done: false });
+      todos.change(current => {
+        current.items.push({ text, done: false });
       });
     }
   }
@@ -84,8 +84,8 @@ const counter = doc('my-counter', { count: 0 });
 counter.data.count   // → 0
 
 // Mutate data
-counter.change(draft => {
-  draft.count = draft.count + 1;
+counter.change(current => {
+  current.count = current.count + 1;
 });
 
 // Check status
@@ -109,7 +109,7 @@ const todos = collection<Todo>('todos');
 
 // CRUD operations
 const id = todos.add({ text: 'Buy milk', done: false });
-todos.update(id, doc => { doc.done = true; });
+todos.update(id, current => { current.done = true; });
 todos.remove(id);
 
 // Reactive array

@@ -40,7 +40,7 @@ export type CompareFn<T> = (a: CollectionItem<T>, b: CollectionItem<T>) => numbe
 /** Query builder interface */
 export interface QueryBuilder<T> {
   /** Filter items matching predicate */
-  where: (fn: WhereFn<T>) => QueryBuilder<T>;
+  where: (predicate: WhereFn<T>) => QueryBuilder<T>;
   /** Sort by field */
   orderBy: (field: keyof T | CompareFn<T>, direction?: SortDirection) => QueryBuilder<T>;
   /** Limit number of results */
@@ -83,7 +83,7 @@ export function query<T extends object>(
 ): QueryBuilder<T> {
   // Query configuration
   let filters: WhereFn<T>[] = [];
-  let sorters: { fn: CompareFn<T> }[] = [];
+  let sorters: { compareFn: CompareFn<T> }[] = [];
   let limitCount: number | null = null;
   let offsetCount: number = 0;
 
@@ -98,7 +98,7 @@ export function query<T extends object>(
 
     // Apply sorters (in order added)
     for (const sorter of sorters) {
-      result.sort(sorter.fn);
+      result.sort(sorter.compareFn);
     }
 
     // Apply offset
@@ -142,8 +142,8 @@ export function query<T extends object>(
 
   // Builder object
   const builder: QueryBuilder<T> = {
-    where(fn: WhereFn<T>): QueryBuilder<T> {
-      filters = [...filters, fn];
+    where(predicate: WhereFn<T>): QueryBuilder<T> {
+      filters = [...filters, predicate];
       return builder;
     },
 
@@ -151,10 +151,10 @@ export function query<T extends object>(
       field: keyof T | CompareFn<T>,
       direction: SortDirection = 'asc'
     ): QueryBuilder<T> {
-      const fn = typeof field === 'function'
+      const compareFn = typeof field === 'function'
         ? field
         : createFieldComparator(field, direction);
-      sorters = [...sorters, { fn }];
+      sorters = [...sorters, { compareFn }];
       return builder;
     },
 

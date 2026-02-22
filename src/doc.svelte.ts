@@ -92,7 +92,7 @@ export interface DocResult<T> {
   /** Retry loading after an error */
   retry: () => void;
   /** Mutate the document */
-  change: (fn: ChangeFn<T>) => void;
+  change: (changeFn: ChangeFn<T>) => void;
   /** Subscribe to document changes (for non-reactive contexts) */
   subscribe: (callback: DocSubscriber<T>) => Unsubscribe;
   /** Get document size in bytes (for monitoring) */
@@ -365,9 +365,9 @@ export function doc<T extends object>(
     get url() { return currentUrl; },  // deprecated alias
     get grants() { return grants; },
     
-    change(fn: ChangeFn<T>) {
+    change(changeFn: ChangeFn<T>) {
       if (currentHandle) {
-        currentHandle.change(fn);
+        currentHandle.change(changeFn);
         status.pendingChanges++;
       }
     },
@@ -628,9 +628,9 @@ export function docFromUrl<T extends object>(
     get url() { return url; },  // deprecated alias
     get grants() { return grants; },
     
-    change(fn: ChangeFn<T>) {
+    change(changeFn: ChangeFn<T>) {
       if (currentHandle) {
-        currentHandle.change(fn);
+        currentHandle.change(changeFn);
         status.pendingChanges++;
       }
     },

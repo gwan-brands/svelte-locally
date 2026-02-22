@@ -81,7 +81,7 @@ export interface CollectionResult<T extends object> {
   /** Get a single item by ID */
   get: (id: string) => CollectionItem<T> | undefined;
   /** Update an item by ID */
-  update: (id: string, fn: ChangeFn<T>) => void;
+  update: (id: string, changeFn: ChangeFn<T>) => void;
   /** Remove an item by ID */
   remove: (id: string) => void;
   /** Check if an item exists */
@@ -474,10 +474,10 @@ export function collection<T extends object>(
       return items.find(item => item.id === id);
     },
     
-    update(id: string, fn: ChangeFn<T>): void {
+    update(id: string, changeFn: ChangeFn<T>): void {
       const handle = itemHandles.get(id);
       if (handle) {
-        handle.change(fn);
+        handle.change(changeFn);
       }
     },
     
