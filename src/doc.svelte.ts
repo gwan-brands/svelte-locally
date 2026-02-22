@@ -168,9 +168,10 @@ export function doc<T extends object>(
   const RETRY_DELAY_MS = 1000;
   
   // Auth instance (lazy loaded)
-  let authPromise: Promise<ReturnType<typeof initAuth>> | null = null;
+  type Auth = Awaited<ReturnType<typeof initAuth>>;
+  let authPromise: Promise<Auth> | null = null;
   
-  async function getAuth() {
+  async function getAuth(): Promise<Auth> {
     if (!authPromise) {
       authPromise = initAuth();
     }
@@ -201,7 +202,7 @@ export function doc<T extends object>(
   }
   
   // Initialize document
-  function initDocument() {
+  async function initDocument() {
     if (cleanup) {
       cleanup();
       cleanup = null;
@@ -217,13 +218,13 @@ export function doc<T extends object>(
       const existingUrl = getStoredUrl(id);
       
       if (existingUrl) {
-        handle = repo.find<T>(existingUrl);
+        handle = await repo.find<T>(existingUrl);
         currentUrl = existingUrl;
         
         // Claim ownership if we don't have a token yet (migration for pre-v0.2 docs)
         getAuth().then(auth => {
           auth.claimOwnership(existingUrl);
-        }).catch(err => {
+        }).catch((err: unknown) => {
           console.warn('[svelte-locally] Failed to claim ownership:', err);
         });
       } else {
@@ -234,7 +235,7 @@ export function doc<T extends object>(
         // Create owner token for new document
         getAuth().then(auth => {
           auth.createDocToken(handle.url);
-        }).catch(err => {
+        }).catch((err: unknown) => {
           console.warn('[svelte-locally] Failed to create owner token:', err);
         });
       }
@@ -278,7 +279,7 @@ export function doc<T extends object>(
             retryCount = 0;
             loadGrants();
           })
-          .catch((err) => {
+          .catch((err: unknown) => {
             status.syncing = false;
             status.error = err instanceof Error ? err.message : 'Failed to load document';
             console.error('[svelte-locally] Document load failed:', err);
@@ -287,7 +288,7 @@ export function doc<T extends object>(
               retryCount++;
               const delay = RETRY_DELAY_MS * Math.pow(2, retryCount - 1);
               console.log(`[svelte-locally] Retrying in ${delay}ms (attempt ${retryCount}/${MAX_RETRIES})`);
-              setTimeout(initDocument, delay);
+              setTimeout(() => { initDocument(); }, delay);
             }
           });
       }
@@ -428,9 +429,10 @@ export function docFromUrl<T extends object>(
   const RETRY_DELAY_MS = 1000;
   
   // Auth instance (lazy loaded)
-  let authPromise: Promise<ReturnType<typeof initAuth>> | null = null;
+  type Auth = Awaited<ReturnType<typeof initAuth>>;
+  let authPromise: Promise<Auth> | null = null;
   
-  async function getAuth() {
+  async function getAuth(): Promise<Auth> {
     if (!authPromise) {
       authPromise = initAuth();
     }
@@ -455,7 +457,7 @@ export function docFromUrl<T extends object>(
     }).catch(() => {});
   }
   
-  function initDocument() {
+  async function initDocument() {
     if (cleanup) {
       cleanup();
       cleanup = null;
@@ -467,7 +469,7 @@ export function docFromUrl<T extends object>(
       status.error = null;
       const repo = getRepo();
       
-      const handle = repo.find<T>(url);
+      const handle = await repo.find<T>(url);
       currentHandle = handle;
       
       const onChange = () => {
@@ -506,14 +508,14 @@ export function docFromUrl<T extends object>(
             retryCount = 0;
             loadGrants();
           })
-          .catch((err) => {
+          .catch((err: unknown) => {
             status.syncing = false;
             status.error = err instanceof Error ? err.message : 'Failed to load document';
             
             if (retryCount < MAX_RETRIES) {
               retryCount++;
               const delay = RETRY_DELAY_MS * Math.pow(2, retryCount - 1);
-              setTimeout(initDocument, delay);
+              setTimeout(() => { initDocument(); }, delay);
             }
           });
       }

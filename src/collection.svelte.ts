@@ -68,7 +68,7 @@ export interface CollectionStatus {
 }
 
 /** Collection API return type */
-export interface CollectionResult<T> {
+export interface CollectionResult<T extends object> {
   /** All loaded items (reactive) */
   readonly items: CollectionItem<T>[];
   /** Collection status */
@@ -195,10 +195,10 @@ export function collection<T extends object>(
   }
   
   // Load an individual item document
-  function loadItem(id: string, url: AutomergeUrl): void {
+  async function loadItem(id: string, url: AutomergeUrl): Promise<void> {
     if (itemHandles.has(id)) return; // Already loaded
     
-    const handle = repo!.find<T>(url);
+    const handle = await repo!.find<T>(url);
     itemHandles.set(id, handle);
     
     const updateItem = () => {
@@ -297,7 +297,7 @@ export function collection<T extends object>(
   }
   
   // Initialize collection
-  function initCollection() {
+  async function initCollection() {
     if (cleanup) {
       cleanup();
       cleanup = null;
@@ -313,7 +313,7 @@ export function collection<T extends object>(
       const existingUrl = getStoredManifestUrl(name);
       
       if (existingUrl) {
-        manifestHandle = repo.find<CollectionManifest>(existingUrl);
+        manifestHandle = await repo.find<CollectionManifest>(existingUrl);
       } else {
         manifestHandle = repo.create<CollectionManifest>({
           items: {},
