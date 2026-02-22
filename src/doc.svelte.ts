@@ -720,7 +720,7 @@ export const docFromId = docFromUrl;
  * Import a document from binary backup data
  * 
  * @param binary - Binary data from doc.export()
- * @returns DocResult for the imported document
+ * @returns The document URL (use with docFromUrl in a reactive context)
  * 
  * @example
  * ```typescript
@@ -730,12 +730,14 @@ export const docFromId = docFromUrl;
  * // Save to file
  * downloadFile(backup, 'my-doc.backup');
  * 
- * // Later, import it
- * const restored = importDoc<MyType>(backup);
+ * // Later, import and load it
+ * const docUrl = importDoc(backup);
+ * // Use in a reactive context:
+ * viewingDocId = docUrl;  // triggers $effect that calls docFromUrl
  * ```
  */
-export function importDoc<T extends object>(binary: Uint8Array): DocResult<T> {
+export function importDoc<T extends object>(binary: Uint8Array): AutomergeUrl {
   const repo = getRepo();
   const handle = repo.import<T>(binary);
-  return docFromUrl<T>(handle.url);
+  return handle.url;
 }

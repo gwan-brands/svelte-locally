@@ -100,12 +100,10 @@
 
         const buffer = await file.arrayBuffer();
         const binary = new Uint8Array(buffer);
-        const imported = importDoc<Note>(binary);
         
-        // Switch to the imported document
-        if (imported.id) {
-            viewingSharedId = imported.id;
-        }
+        // Import returns the URL - use it to trigger reactive loading
+        const docUrl = importDoc<Note>(binary);
+        viewingSharedId = docUrl;  // $effect will load via docFromId
         
         // Reset file input
         input.value = "";

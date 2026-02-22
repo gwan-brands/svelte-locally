@@ -216,11 +216,16 @@ if (backup) {
 }
 
 // Restore from backup
-import { importDoc } from 'svelte-locally';
+import { importDoc, docFromId } from 'svelte-locally';
 
 const fileData = await readFile('my-document.backup');
-const restored = importDoc<MyType>(fileData);
-// restored is a full DocResult, ready to use
+const docUrl = importDoc<MyType>(fileData);  // returns URL
+
+// Load in a reactive context (e.g., $effect or component init)
+let viewingId = $state(docUrl);
+$effect(() => {
+  if (viewingId) myDoc = docFromId<MyType>(viewingId);
+});
 ```
 
 ## SSR Support
