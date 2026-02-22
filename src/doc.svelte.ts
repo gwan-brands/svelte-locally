@@ -65,6 +65,8 @@ export interface DocStatus {
   pendingChanges: number;
   /** When doc was last synced (null if never) */
   lastSyncedAt: Date | null;
+  /** Loading progress 0-100 (during initial load) */
+  loadProgress: number;
 }
 
 // ============ Doc Result Type ============
@@ -164,6 +166,7 @@ export function doc<T extends object>(
     error: null,
     pendingChanges: 0,
     lastSyncedAt: null,
+    loadProgress: 0,
   });
   let currentHandle = $state<DocHandle<T> | null>(null);
   let currentUrl = $state<AutomergeUrl | null>(null);
@@ -226,8 +229,33 @@ export function doc<T extends object>(
       const existingUrl = getStoredUrl(id);
       
       if (existingUrl) {
-        handle = await repo.find<T>(existingUrl);
+        // Use findWithProgress for loading progress updates
+        const progress = repo.findWithProgress<T>(existingUrl);
+        
+        // Subscribe to progress updates if available
+        let unsubProgress: (() => void) | null = null;
+        if ('subscribe' in progress) {
+          unsubProgress = progress.subscribe((p) => {
+            if (p.state === 'loading' && 'progress' in p) {
+              status.loadProgress = Math.round(p.progress * 100);
+            } else if (p.state === 'ready') {
+              status.loadProgress = 100;
+            }
+          });
+        }
+        
+        // Wait for document to be ready
+        if ('untilReady' in progress) {
+          handle = await progress.untilReady(['ready', 'unavailable']);
+        } else {
+          handle = await repo.find<T>(existingUrl);
+        }
+        
+        // Cleanup progress subscription
+        if (unsubProgress) unsubProgress();
+        
         currentUrl = existingUrl;
+        status.loadProgress = 100;
         
         // Claim ownership if we don't have a token yet (migration for pre-v0.2 docs)
         getAuth().then(auth => {
@@ -434,6 +462,7 @@ export function docFromUrl<T extends object>(
     error: null,
     pendingChanges: 0,
     lastSyncedAt: null,
+    loadProgress: 0,
   });
   let currentHandle = $state<DocHandle<T> | null>(null);
   let grants = $state<Grant[]>([]);
@@ -484,7 +513,33 @@ export function docFromUrl<T extends object>(
       status.error = null;
       const repo = getRepo();
       
-      const handle = await repo.find<T>(url);
+      // Use findWithProgress for loading progress updates
+      const progress = repo.findWithProgress<T>(url);
+      
+      // Subscribe to progress updates if available
+      let unsubProgress: (() => void) | null = null;
+      if ('subscribe' in progress) {
+        unsubProgress = progress.subscribe((p) => {
+          if (p.state === 'loading' && 'progress' in p) {
+            status.loadProgress = Math.round(p.progress * 100);
+          } else if (p.state === 'ready') {
+            status.loadProgress = 100;
+          }
+        });
+      }
+      
+      // Wait for document to be ready
+      let handle: DocHandle<T>;
+      if ('untilReady' in progress) {
+        handle = await progress.untilReady(['ready', 'unavailable']);
+      } else {
+        handle = await repo.find<T>(url);
+      }
+      
+      // Cleanup progress subscription
+      if (unsubProgress) unsubProgress();
+      status.loadProgress = 100;
+      
       currentHandle = handle;
       
       const onChange = () => {

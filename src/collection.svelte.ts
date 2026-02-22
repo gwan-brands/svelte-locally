@@ -65,6 +65,8 @@ export interface CollectionStatus {
   pendingChanges: number;
   /** When collection was last synced (null if never) */
   lastSyncedAt: Date | null;
+  /** Loading progress 0-100 (during initial load) */
+  loadProgress: number;
 }
 
 /** Collection API return type */
@@ -169,6 +171,7 @@ export function collection<T extends object>(
     error: null,
     pendingChanges: 0,
     lastSyncedAt: null,
+    loadProgress: 0,
   });
   
   
@@ -313,13 +316,38 @@ export function collection<T extends object>(
       const existingUrl = getStoredManifestUrl(name);
       
       if (existingUrl) {
-        manifestHandle = await repo.find<CollectionManifest>(existingUrl);
+        // Use findWithProgress for loading progress updates
+        const progress = repo.findWithProgress<CollectionManifest>(existingUrl);
+        
+        // Subscribe to progress updates if available
+        let unsubProgress: (() => void) | null = null;
+        if ('subscribe' in progress) {
+          unsubProgress = progress.subscribe((p) => {
+            if (p.state === 'loading' && 'progress' in p) {
+              status.loadProgress = Math.round(p.progress * 100);
+            } else if (p.state === 'ready') {
+              status.loadProgress = 100;
+            }
+          });
+        }
+        
+        // Wait for manifest to be ready
+        if ('untilReady' in progress) {
+          manifestHandle = await progress.untilReady(['ready', 'unavailable']);
+        } else {
+          manifestHandle = await repo.find<CollectionManifest>(existingUrl);
+        }
+        
+        // Cleanup progress subscription
+        if (unsubProgress) unsubProgress();
+        status.loadProgress = 100;
       } else {
         manifestHandle = repo.create<CollectionManifest>({
           items: {},
           order: [],
         });
         storeManifestUrl(name, manifestHandle.url);
+        status.loadProgress = 100;
       }
       
       // Handle manifest changes
