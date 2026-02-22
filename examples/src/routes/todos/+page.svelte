@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { init, doc, docFromUrl, collection, query, identity, type DocResult, type CollectionResult, type Auth, type Role } from 'svelte-locally';
+  import { doc, docFromId, collection, query, identity, type DocResult, type CollectionResult, type Auth, type Role } from 'svelte-locally';
   import { onMount } from 'svelte';
 
   // ============ Data Types ============
@@ -45,8 +45,7 @@
   // ============ Lifecycle ============
 
   onMount(async () => {
-    init({ sync: 'wss://sync.automerge.org' });
-
+    // init() is called in +layout.svelte
     settings = doc<Settings>('todo-settings', {
       listTitle: 'My Todo List',
     });
@@ -136,19 +135,19 @@
     }
   }
 
-  // Shared doc URL state
-  let viewingSharedUrl = $state<string | null>(null);
+  // Shared doc ID state
+  let viewingSharedId = $state<string | null>(null);
 
-  // Watch for URL changes
+  // Watch for ID changes
   $effect(() => {
-    if (viewingSharedUrl) {
-      settings = docFromUrl<Settings>(viewingSharedUrl);
+    if (viewingSharedId) {
+      settings = docFromId<Settings>(viewingSharedId);
     }
   });
 
   // Open a shared settings document
-  function openSharedSettings(docUrl: string) {
-    viewingSharedUrl = docUrl;
+  function openSharedSettings(docId: string) {
+    viewingSharedId = docId;
     showShareModal = false;
   }
 

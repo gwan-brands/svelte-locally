@@ -80,7 +80,9 @@ export interface DocResult<T> {
   readonly data: T | undefined;
   /** Reactive status object */
   readonly status: DocStatus;
-  /** Automerge URL for this document */
+  /** Document identifier (Automerge URL) */
+  readonly id: AutomergeUrl | null;
+  /** @deprecated Use `id` instead */
   readonly url: AutomergeUrl | null;
   /** Access grants issued for this document */
   readonly grants: Grant[];
@@ -317,7 +319,8 @@ export function doc<T extends object>(
   return {
     get data() { return data; },
     get status() { return status; },
-    get url() { return currentUrl; },
+    get id() { return currentUrl; },
+    get url() { return currentUrl; },  // deprecated alias
     get grants() { return grants; },
     
     change(fn: ChangeFn<T>) {
@@ -539,7 +542,8 @@ export function docFromUrl<T extends object>(
   return {
     get data() { return data; },
     get status() { return status; },
-    get url() { return url; },
+    get id() { return url; },
+    get url() { return url; },  // deprecated alias
     get grants() { return grants; },
     
     change(fn: ChangeFn<T>) {
@@ -613,3 +617,13 @@ export function docFromUrl<T extends object>(
     },
   };
 }
+
+/**
+ * Alias for docFromUrl - load a document by its ID (Automerge URL)
+ * 
+ * @example
+ * ```typescript
+ * const sharedDoc = docFromId<Note>('automerge:abc123...');
+ * ```
+ */
+export const docFromId = docFromUrl;

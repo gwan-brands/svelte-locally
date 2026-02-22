@@ -1,8 +1,7 @@
 <script lang="ts">
     import {
-        init,
         doc,
-        docFromUrl,
+        docFromId,
         identity,
         type DocResult,
         type Auth,
@@ -18,7 +17,7 @@
     }
 
     // State - which doc to view
-    let viewingSharedUrl = $state<string | null>(null);
+    let viewingSharedId = $state<string | null>(null);
     let note = $state<DocResult<Note> | null>(null);
     let user = $state<Auth | null>(null);
 
@@ -37,15 +36,14 @@
     let importSuccess = $state(false);
 
     onMount(async () => {
-        init({ sync: "wss://sync.automerge.org" });
         user = await identity();
     });
 
-    // Watch for URL changes and load appropriate doc
-    // This runs on mount AND when viewingSharedUrl changes
+    // Watch for ID changes and load appropriate doc
+    // This runs on mount AND when viewingSharedId changes
     $effect(() => {
-        if (viewingSharedUrl) {
-            note = docFromUrl<Note>(viewingSharedUrl);
+        if (viewingSharedId) {
+            note = docFromId<Note>(viewingSharedId);
         } else {
             note = doc<Note>("shared-note", {
                 title: "Untitled Note",
@@ -60,9 +58,9 @@
         user = await identity();
     }
 
-    // Open a shared document by URL
-    function openSharedDoc(docUrl: string) {
-        viewingSharedUrl = docUrl;
+    // Open a shared document by ID
+    function openSharedDoc(docId: string) {
+        viewingSharedId = docId;
         showSharePanel = false;
         isEditing = false;
         titleInput = "";
@@ -71,7 +69,7 @@
 
     // Go back to own document
     function openOwnDoc() {
-        viewingSharedUrl = null;
+        viewingSharedId = null;
         // The $effect above will handle loading the doc
     }
 
@@ -307,7 +305,7 @@
     {/if}
 
     <!-- Document Switcher (when viewing shared doc) -->
-    {#if viewingSharedUrl}
+    {#if viewingSharedId}
         <section class="doc-switcher">
             <span>Viewing shared document</span>
             <button onclick={openOwnDoc}>← Back to my note</button>

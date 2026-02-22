@@ -42,7 +42,8 @@ export {
 // Document API
 export { 
   doc, 
-  docFromUrl, 
+  docFromUrl,
+  docFromId,  // friendlier alias for docFromUrl
   type DocResult, 
   type DocStatus,
   type DocSubscriber,
