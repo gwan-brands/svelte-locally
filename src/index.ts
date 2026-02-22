@@ -44,6 +44,7 @@ export {
   doc, 
   docFromUrl,
   docFromId,  // friendlier alias for docFromUrl
+  importDoc,  // restore from binary backup
   type DocResult, 
   type DocStatus,
   type DocSubscriber,

@@ -98,6 +98,14 @@ export interface DocResult<T> {
   /** Compact document to reduce storage size (removes old history) */
   compact: () => Promise<void>;
   
+  // ===== Backup API =====
+  
+  /**
+   * Export document to binary format for backup
+   * @returns Binary data (Uint8Array) or null if not ready
+   */
+  export: () => Promise<Uint8Array | null>;
+  
   // ===== Sharing API =====
   
   /**
@@ -364,6 +372,13 @@ export function doc<T extends object>(
       }
     },
     
+    async export(): Promise<Uint8Array | null> {
+      if (!currentUrl) return null;
+      const repo = getRepo();
+      const binary = await repo.export(currentUrl);
+      return binary ?? null;
+    },
+    
     // ===== Sharing API =====
     
     async createToken(role: Role, options?: CreateTokenOptions): Promise<string> {
@@ -588,6 +603,12 @@ export function docFromUrl<T extends object>(
       }
     },
     
+    async export(): Promise<Uint8Array | null> {
+      const repo = getRepo();
+      const binary = await repo.export(url);
+      return binary ?? null;
+    },
+    
     // ===== Sharing API =====
     
     async createToken(role: Role, options?: CreateTokenOptions): Promise<string> {
@@ -629,3 +650,27 @@ export function docFromUrl<T extends object>(
  * ```
  */
 export const docFromId = docFromUrl;
+
+/**
+ * Import a document from binary backup data
+ * 
+ * @param binary - Binary data from doc.export()
+ * @returns DocResult for the imported document
+ * 
+ * @example
+ * ```typescript
+ * // Export a document
+ * const backup = await myDoc.export();
+ * 
+ * // Save to file
+ * downloadFile(backup, 'my-doc.backup');
+ * 
+ * // Later, import it
+ * const restored = importDoc<MyType>(backup);
+ * ```
+ */
+export function importDoc<T extends object>(binary: Uint8Array): DocResult<T> {
+  const repo = getRepo();
+  const handle = repo.import<T>(binary);
+  return docFromUrl<T>(handle.url);
+}

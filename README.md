@@ -197,6 +197,26 @@ doc.status.lastSyncedAt    // Date | null
 doc.status.online          // network available
 ```
 
+## Backup & Restore
+
+Export documents to binary format for backup:
+
+```typescript
+// Export a document
+const backup = await doc.export();
+if (backup) {
+  // Save to file, cloud storage, etc.
+  downloadFile(backup, 'my-document.backup');
+}
+
+// Restore from backup
+import { importDoc } from 'svelte-locally';
+
+const fileData = await readFile('my-document.backup');
+const restored = importDoc<MyType>(fileData);
+// restored is a full DocResult, ready to use
+```
+
 ## SSR Support
 
 All APIs handle server-side rendering gracefully:
