@@ -281,6 +281,82 @@ let todos: CollectionResult<Todo> | null = $state(null);
 - **UCAN for auth:** Capabilities verified client-side
 - **CRDTs for sync:** Conflicts merge automatically
 
+## Common Pitfalls
+
+### 1. Always call `init()` first
+
+```typescript
+// ❌ Wrong - will throw
+const todos = doc('todos', { items: [] });
+init();
+
+// ✅ Correct
+init();
+const todos = doc('todos', { items: [] });
+```
+
+### 2. Use `doc()` inside component initialization
+
+`doc()` and `collection()` use Svelte's `$effect` internally, so they must be called during component init:
+
+```typescript
+// ❌ Wrong - $effect orphan error
+async function loadDoc() {
+  const myDoc = doc('settings', {});  // Error!
+}
+
+// ✅ Correct - in component script or $effect
+const myDoc = doc('settings', {});
+
+// ✅ Also correct - reactive loading
+let docId = $state('doc-1');
+let myDoc = $state(null);
+$effect(() => {
+  myDoc = docFromId(docId);
+});
+```
+
+### 3. Handle SSR with `onMount`
+
+In SvelteKit, browser APIs aren't available during SSR:
+
+```svelte
+<script>
+  import { init, doc } from 'svelte-locally';
+  import { onMount } from 'svelte';
+  
+  let todos = $state(null);
+  
+  // ✅ Wrap in onMount for SSR safety
+  onMount(() => {
+    init();
+    todos = doc('todos', { items: [] });
+  });
+</script>
+```
+
+### 4. `importDoc()` returns URL, not DocResult
+
+```typescript
+// ❌ Wrong - importDoc doesn't return a doc
+const restored = importDoc(binary);
+restored.change(...);  // Error!
+
+// ✅ Correct - use URL with docFromId in reactive context
+const docUrl = importDoc(binary);
+viewingDocId = docUrl;  // Let $effect load it
+```
+
+### 5. Share tokens are bearer tokens
+
+Anyone with the token string has access. Treat share tokens like passwords:
+
+```typescript
+const token = await doc.createToken('writer');
+// ⚠️ Anyone with this string can edit the document
+// Share securely (DM, email) - not in public URLs
+```
+
 ## Examples
 
 See the [examples](./examples) directory for working demos:
